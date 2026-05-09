@@ -11,5 +11,17 @@ const storage = multer.diskStorage({
     cb(null, `${file.fieldname}-${uniqueSuffix}${ext}`);
   },
 });
+// csv file filter
 
-export const upload = multer({ storage });
+const fileFilter = (
+  _req: Express.Request,
+  file: Express.Multer.File,
+  cb: multer.FileFilterCallback
+) => {
+  if (file.mimetype === "text/csv" || file.originalname.endsWith(".csv")) {
+    cb(null, true);
+  } else {
+    cb(new Error("Only CSV files are allowed"));
+  }
+};
+export const upload = multer({ storage,fileFilter });

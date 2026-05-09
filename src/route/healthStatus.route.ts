@@ -8,3 +8,4 @@ const router = Router();
 router.get("/ping",(req:Request,res:Response)=>{
     res.status(200).json(new customResponse(200,null,"pong",true) )
 })
+export default router
