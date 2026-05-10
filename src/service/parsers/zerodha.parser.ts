@@ -1,18 +1,12 @@
 import { TradeSchema, type TradeSchemaType } from "../../schema/trade.schema";
 import { parseCSV } from "../../config/csv-parser.config";
+import { normalizeSide } from "./utility/shared.utility";
+import { ParseResult } from "./utility/shared.utility";
 
-interface ParseResult {
-  broker: string;
-  summary: { total: number; valid: number; skipped: number };
-  trades: TradeSchemaType[];
-  errors: { row: number; reason: string }[];
-}
+// Converts DD-MM-YYYY to ISO 8601 datetime string for zerodha
+// Returns null if the date is invalid.
 
-/**
- * Converts DD-MM-YYYY to ISO 8601 datetime string.
- * Returns null if the date is invalid.
- */
-function parseDateDDMMYYYY(dateStr: string): string | null {
+const parseDateDDMMYYYY = (dateStr: string): string | null => {
   const parts = dateStr.split("-");
   if (parts.length !== 3) return null;
 
@@ -24,35 +18,19 @@ function parseDateDDMMYYYY(dateStr: string): string | null {
   if (isNaN(parsed.getTime())) return null;
 
   return isoDate;
-}
+};
 
-/**
- * Normalizes trade_type ("buy", "sell", "BUY", "SELL") → "BUY" | "SELL"
- */
-function normalizeSide(tradeType: string): "BUY" | "SELL" | null {
-  const upper = tradeType.trim().toUpperCase();
-  if (upper === "BUY") return "BUY";
-  if (upper === "SELL") return "SELL";
-  return null;
-}
+// Normalizes trade_type ("buy", "sell", "BUY", "SELL") → "BUY" | "SELL"
 
-/**
- * Infers currency from exchange column (NSE/BSE → INR).
- */
-function inferCurrency(exchange: string): string {
+//  converts  currency from exchange column (NSE/BSE → INR).
+
+const inferCurrency = (exchange: string): string => {
   const upper = exchange.trim().toUpperCase();
   if (upper === "NSE" || upper === "BSE") return "INR";
-  return "INR"; // Default for Zerodha (Indian broker)
-}
-
-/**
- * Parses a Zerodha-style CSV file and returns validated trades + errors.
- *
- * Expected CSV headers (after lowercase):
- *   symbol, isin, trade_date, trade_type, quantity, price,
- *   trade_id, order_id, exchange, segment
- */
-export async function parseZerodha(filePath: string): Promise<ParseResult> {
+  return "INR";
+};
+// zerodha - csv parser
+export const parseZerodha = async (filePath: string): Promise<ParseResult> => {
   const rows = await parseCSV(filePath);
 
   const trades: TradeSchemaType[] = [];
@@ -70,8 +48,6 @@ export async function parseZerodha(filePath: string): Promise<ParseResult> {
     const priceRaw = parseFloat(row["price"]);
     const exchange = (row["exchange"] || "").trim();
 
-    // --- Validate & transform ---
-
     // Date
     const executedAt = parseDateDDMMYYYY(tradeDate);
     if (!executedAt) {
@@ -82,24 +58,34 @@ export async function parseZerodha(filePath: string): Promise<ParseResult> {
     // Side
     const side = normalizeSide(tradeType);
     if (!side) {
-      errors.push({ row: rowNumber, reason: `Invalid trade_type: '${tradeType}'` });
+      errors.push({
+        row: rowNumber,
+        reason: `Invalid trade_type: '${tradeType}'`,
+      });
       continue;
     }
 
     // Quantity
     if (isNaN(quantityRaw) || quantityRaw <= 0) {
-      errors.push({ row: rowNumber, reason: `Quantity must be positive, got ${quantityRaw}` });
+      errors.push({
+        row: rowNumber,
+        reason: `Quantity must be positive, got ${quantityRaw}`,
+      });
       continue;
     }
 
     // Price
     if (isNaN(priceRaw) || priceRaw <= 0) {
-      errors.push({ row: rowNumber, reason: `Price must be positive, got ${priceRaw}` });
+      errors.push({
+        row: rowNumber,
+        reason: `Price must be positive, got ${priceRaw}`,
+      });
       continue;
     }
 
     // Build trade object
-    const totalAmount = side === "SELL" ? -(quantityRaw * priceRaw) : quantityRaw * priceRaw;
+    const totalAmount =
+      side === "SELL" ? -(quantityRaw * priceRaw) : quantityRaw * priceRaw;
 
     const tradeObj = {
       symbol,
@@ -118,7 +104,9 @@ export async function parseZerodha(filePath: string): Promise<ParseResult> {
     if (result.success) {
       trades.push(result.data);
     } else {
-      const reasons = result.error.issues.map((issue) => issue.message).join("; ");
+      const reasons = result.error.issues
+        .map((issue) => issue.message)
+        .join("; ");
       errors.push({ row: rowNumber, reason: reasons });
     }
   }
@@ -133,4 +121,4 @@ export async function parseZerodha(filePath: string): Promise<ParseResult> {
     trades,
     errors,
   };
-}
+};

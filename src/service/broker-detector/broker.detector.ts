@@ -31,10 +31,8 @@ const BROKER_HEADERS: Record<string, string[]> = {
   ],
 };
 
-/**
- * Reads only the first line (header row) of a CSV file.
- */
-function readHeaders(filePath: string): Promise<string[]> {
+// method to read header of csv file
+const readHeaders=(filePath: string): Promise<string[]>=> {
   return new Promise((resolve, reject) => {
     const stream = fs.createReadStream(filePath);
     let resolved = false;
@@ -58,10 +56,8 @@ function readHeaders(filePath: string): Promise<string[]> {
   });
 }
 
-/**
- * Calculates how many of the expected headers are present in the actual headers.
- * Returns a score between 0 and 1.
- */
+// intuition behind detection -> calulate total no. of expected headers and divide by actual no. of headers , if greater than 0.6 then it will be matched broker. matlab kis broker se jyada score match kar raha hai ,
+
 const matchScore = (actual: string[], expected: string[]): number => {
   const matchCount = expected.filter((h) => actual.includes(h)).length;
   return matchCount / expected.length;
@@ -70,8 +66,8 @@ const matchScore = (actual: string[], expected: string[]): number => {
 export type BrokerName = "zerodha" | "ibkr";
 
 
-export async function detectBroker(filePath: string): Promise<BrokerName> {
-  // Validate file exists
+export const detectBroker= async (filePath: string): Promise<BrokerName>=> {
+  
   if (!fs.existsSync(filePath)) {
     throw new ApiError(400, `File not found: ${filePath}`);
   }

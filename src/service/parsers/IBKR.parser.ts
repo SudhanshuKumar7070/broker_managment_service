@@ -1,30 +1,15 @@
 import { TradeSchema, type TradeSchemaType } from "../../schema/trade.schema";
 import { parseCSV } from "../../config/csv-parser.config";
-
-interface ParseResult {
-  broker: string;
-  summary: { total: number; valid: number; skipped: number };
-  trades: TradeSchemaType[];
-  errors: { row: number; reason: string }[];
-}
-
-/**
- * Normalizes BOT/SLD → BUY/SELL
- */
-function normalizeSide(side: string): "BUY" | "SELL" | null {
-  const upper = side.trim().toUpperCase();
-  if (upper === "BOT" || upper === "BUY") return "BUY";
-  if (upper === "SLD" || upper === "SELL") return "SELL";
-  return null;
-}
+import { normalizeSide } from "./utility/shared.utility";
+import { ParseResult } from "./utility/shared.utility";
 
 /**
  * Normalizes IBKR symbol format.
  * e.g. "EUR.USD" → "EUR/USD"
  */
-function normalizeSymbol(symbol: string): string {
+const normalizeSymbol = (symbol: string): string => {
   return symbol.trim().replace(/\./g, "/");
-}
+};
 
 /**
  * Parses IBKR datetime which can be:
@@ -32,7 +17,7 @@ function normalizeSymbol(symbol: string): string {
  *  - MM/DD/YYYY: "04/03/2026"
  * Returns ISO 8601 string or null if invalid.
  */
-function parseDateTime(dateStr: string): string | null {
+const parseDateTime = (dateStr: string): string | null => {
   const trimmed = dateStr.trim();
 
   // Try MM/DD/YYYY format
@@ -49,16 +34,10 @@ function parseDateTime(dateStr: string): string | null {
   const parsed = new Date(trimmed);
   if (isNaN(parsed.getTime())) return null;
   return parsed.toISOString();
-}
+};
 
-/**
- * Parses an Interactive Brokers (IBKR) style CSV file.
- *
- * Expected CSV headers (after lowercase):
- *   tradeid, accountid, symbol, datetime, buy/sell, quantity,
- *   tradeprice, currency, commission, netamount, assetclass
- */
-export async function parseIBKR(filePath: string): Promise<ParseResult> {
+// IKBR --csv parser
+export  const parseIBKR= async(filePath: string): Promise<ParseResult> => {
   const rows = await parseCSV(filePath);
 
   const trades: TradeSchemaType[] = [];
@@ -88,31 +67,44 @@ export async function parseIBKR(filePath: string): Promise<ParseResult> {
     // DateTime
     const executedAt = parseDateTime(dateTimeRaw);
     if (!executedAt) {
-      errors.push({ row: rowNumber, reason: `Invalid datetime: '${dateTimeRaw}'` });
+      errors.push({
+        row: rowNumber,
+        reason: `Invalid datetime: '${dateTimeRaw}'`,
+      });
       continue;
     }
 
     // Side
     const side = normalizeSide(sideRaw);
     if (!side) {
-      errors.push({ row: rowNumber, reason: `Invalid Buy/Sell value: '${sideRaw}'` });
+      errors.push({
+        row: rowNumber,
+        reason: `Invalid Buy/Sell value: '${sideRaw}'`,
+      });
       continue;
     }
 
     // Quantity
     if (isNaN(quantityRaw) || quantityRaw <= 0) {
-      errors.push({ row: rowNumber, reason: `Quantity must be positive, got ${quantityRaw}` });
+      errors.push({
+        row: rowNumber,
+        reason: `Quantity must be positive, got ${quantityRaw}`,
+      });
       continue;
     }
 
     // Price
     if (isNaN(priceRaw) || priceRaw <= 0) {
-      errors.push({ row: rowNumber, reason: `Price must be positive, got ${priceRaw}` });
+      errors.push({
+        row: rowNumber,
+        reason: `Price must be positive, got ${priceRaw}`,
+      });
       continue;
     }
 
     // Build trade object
-    const totalAmount = side === "SELL" ? -(quantityRaw * priceRaw) : quantityRaw * priceRaw;
+    const totalAmount =
+      side === "SELL" ? -(quantityRaw * priceRaw) : quantityRaw * priceRaw;
 
     const tradeObj = {
       symbol,
@@ -131,7 +123,9 @@ export async function parseIBKR(filePath: string): Promise<ParseResult> {
     if (result.success) {
       trades.push(result.data);
     } else {
-      const reasons = result.error.issues.map((issue) => issue.message).join("; ");
+      const reasons = result.error.issues
+        .map((issue) => issue.message)
+        .join("; ");
       errors.push({ row: rowNumber, reason: reasons });
     }
   }
