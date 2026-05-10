@@ -118,6 +118,15 @@ Upload a broker CSV file for parsing and normalization.
 }
 ```
 
+## Design Decisions
+
+- **Stateless Architecture**: The service acts as a pure pipeline (parse, normalize, validate, respond) without database dependencies. This ensures it's horizontally scalable and acts perfectly as a specialized microservice.
+- **Strict Separation of Concerns**: Logic is decoupled into clear domains: `controller` (HTTP logic), `broker-detector` (identification), `parsers` (broker-specific parsing), and `schema` (Zod validation).
+- **Zod for Runtime Validation**: Provides both TypeScript type inference (`TradeSchemaType`) and robust runtime validation, acting as a strict contract between the service and clients.
+- **Fail-Safe Parsing**: Instead of failing an entire file due to one bad row, the parser skips invalid rows, logs them in an `errors` array with the exact row number and reason, and processes the valid rows. This provides a vastly superior UX.
+- **Score-Based Broker Detection**: Rather than relying on rigid exact-matching, headers are evaluated using a score-based threshold (60%), making detection resilient to minor broker export changes.
+- **Streaming Large CSVs**: `csv-parser` is used to stream the file rather than loading it entirely into memory, ensuring memory stability for large trade histories.
+
 ## Data Flow & Architecture
 
 1. **Upload & Storage**: The client uploads a CSV via multipart/form-data. `multer` middleware temporarily stores the file on disk (`Public/temp`).

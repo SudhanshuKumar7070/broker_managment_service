@@ -17,4 +17,28 @@ app.use(express.urlencoded({ extended: true }));
 app.use("/api/v1/", healthStatus);
 app.use("/api/v1/trade", tradeRoute);
 
+// Global Error Handler Middleware
+import { NextFunction, Request, Response } from "express";
+import { ApiError } from "./utils/ErrorHandler";
+
+app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
+  if (err instanceof ApiError) {
+    res.status(err.statusCode).json({
+      success: false,
+      message: err.message,
+      errors: err.errors,
+      data: null,
+    });
+    return;
+  }
+
+  console.error("Unhandled Error:", err);
+  res.status(500).json({
+    success: false,
+    message: "Internal Server Error",
+    errors: [err.message],
+    data: null,
+  });
+});
+
 export { app };
