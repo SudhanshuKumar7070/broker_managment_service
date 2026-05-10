@@ -6,10 +6,11 @@ import { parseIBKR } from "../service/parsers/IBKR.parser";
 import { ApiError } from "../utils/ErrorHandler";
 import { customResponse } from "../utils/ResponseHandler";
 
-/**
- * POST /import
- * Accepts a CSV file upload (multipart/form-data),
- * auto-detects the broker, parses & validates trades,
+/** how this controller works----->
+ * POST /trade/import
+ * Accepts a CSV file upload (multipart/form-data(using multer)),
+ * auto-detects the broker --> different  parser for different broker,
+ *  parses & validates trades,
  * and returns structured JSON response.
  */
 export const importTrades = async (
@@ -20,7 +21,7 @@ export const importTrades = async (
   const filePath = req.file?.path;
 
   try {
-    // 1. Validate file was uploaded
+    // 1. Validation for file  uploadeded or not 
     if (!req.file || !filePath) {
       throw new ApiError(
         400,
@@ -28,10 +29,10 @@ export const importTrades = async (
       );
     }
 
-    // 2. Auto-detect broker from CSV headers
+    // 2. broker detector
     const broker = await detectBroker(filePath);
 
-    // 3. Parse using the appropriate broker parser
+    // 3. selective parsing 
     let result;
     switch (broker) {
       case "zerodha":
@@ -44,14 +45,14 @@ export const importTrades = async (
         throw new ApiError(400, `No parser available for broker: ${broker}`);
     }
 
-    // 4. Return structured response
+    // returnning response
     res
       .status(200)
       .json(new customResponse(200, result, "CSV processed successfully"));
   } catch (err) {
     next(err);
   } finally {
-    // 5. Cleanup: remove temp file after processing
+    // 5. Cleanup- removing uploaded file from server (local storage)
     if (filePath && fs.existsSync(filePath)) {
       fs.unlink(filePath, (unlinkErr) => {
         if (unlinkErr)
