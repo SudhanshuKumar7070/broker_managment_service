@@ -13,4 +13,4 @@ broker: z.string().min(1),
 rawData: z.record(z.string(), z.any()), 
 })
 
-export type TradeSchema = z.infer<typeof TradeSchema>
+export type TradeSchemaType = z.infer<typeof TradeSchema>
