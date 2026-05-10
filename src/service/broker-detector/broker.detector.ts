@@ -62,26 +62,14 @@ function readHeaders(filePath: string): Promise<string[]> {
  * Calculates how many of the expected headers are present in the actual headers.
  * Returns a score between 0 and 1.
  */
-function matchScore(actual: string[], expected: string[]): number {
+const matchScore = (actual: string[], expected: string[]): number => {
   const matchCount = expected.filter((h) => actual.includes(h)).length;
   return matchCount / expected.length;
 }
 
 export type BrokerName = "zerodha" | "ibkr";
 
-/**
- * Auto-detects which broker a CSV file belongs to based on its column headers.
- *
- * Matching strategy:
- *  - Reads the header row from the CSV
- *  - Compares against known broker header signatures
- *  - The broker with the highest match score (>= 60% threshold) wins
- *  - If no broker meets the threshold, throws an ApiError
- *
- * @param filePath - Path to the uploaded CSV file
- * @returns The detected broker name
- * @throws ApiError (400) if the file is empty, has no headers, or format is unrecognized
- */
+
 export async function detectBroker(filePath: string): Promise<BrokerName> {
   // Validate file exists
   if (!fs.existsSync(filePath)) {

@@ -9,7 +9,7 @@
     "moduleResolution": "node16",
     "esModuleInterop": true,
     "resolveJsonModule": true,
-    "types": ["node"],
+    "types": ["node", "jest"],
 
     /* Output */
     "outDir": "./dist",
